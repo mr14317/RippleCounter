@@ -1,0 +1,95 @@
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+
+#include "Maxfiles.h"
+#include "MaxSLiCInterface.h"
+
+typedef struct _JKFF
+{
+    int clk;
+    int q;
+    int nq;
+}JKFF;
+
+
+void JKFFn(int Clk, int J, int K, JKFF * jkff)
+{
+    if ((Clk != jkff->clk) && !Clk)
+    {   /* Triggering FF on the falling edge */
+         if(J& (!K))
+        {
+            jkff->q = 1;
+        }
+        if(K &(!J))
+        {
+            jkff->q = 0;
+        }
+        if(J & K)
+        {
+            jkff->q = !jkff->q;
+        }
+        jkff->nq = !jkff->q;
+    }
+    jkff->clk = Clk;
+}
+
+int main(void){
+clock_t start = clock();
+	const int size = 80;
+	int Clk=1;
+	
+	int sizeBytes = size * sizeof(float);
+	int *x = malloc(sizeBytes);
+	int *y = malloc(sizeBytes);
+		int *OB= malloc(sizeBytes);
+	int *OC = malloc(sizeBytes);
+	int *OD = malloc(sizeBytes);
+	
+	JKFF jkff[4];
+    memset(jkff, 0, sizeof(jkff));
+	int *s = malloc(sizeBytes);
+
+    for(int n=0; n<size; n++)
+    {
+        Clk^=1;
+
+        JKFFn(Clk, 1, 1, &jkff[0]);
+        JKFFn(jkff[0].q, 1, 1, &jkff[1]);
+        JKFFn(jkff[1].q, 1, 1, &jkff[2]);
+        JKFFn(jkff[2].q, 1, 1, &jkff[3]);
+
+        x[n] = Clk;
+        y[n] = jkff[0].q;
+        OB[n] = jkff[1].q;
+        OC[n] = jkff[2].q;
+        OD[n] = jkff[3].q;
+    }
+
+
+	printf("Running on DFE.\n");
+	HaltedOnInput(size, x, sizeBytes, y, sizeBytes, s, sizeBytes);
+
+	clock_t end = clock();
+	float seconds = (float)(end - start) / CLOCKS_PER_SEC;
+	  printf("Clk: ");
+    for(int n = 0; n<size; n++) printf("%d", x[n]);
+    printf("\nOuA: ");
+    for(int n = 0; n<size; n++) printf("%d", y[n]);
+    printf("\nOuB: ");
+    for(int n = 0; n<size; n++) printf("%d", OB[n]);
+    printf("\nOuC: ");
+    for(int n = 0; n<size; n++) printf("%d", OC[n]);
+    printf("\nOuD: ");
+    for(int n = 0; n<size; n++) printf("%d", OD[n]);
+	printf("\n");
+	
+	printf ("Your calculations took %lf seconds to run.\n", seconds);
+	free(x);
+	free(y);
+	free(s);
+	return 0;
+}
+
